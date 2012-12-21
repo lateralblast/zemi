@@ -2,6 +2,27 @@
 use strict;
 use Getopt::Std;
 
+# Name:         freemem
+# Version:      1.0.3
+# Release:      1
+# License:      Open Source
+# Group:        System
+# Source:       freemem.pl
+# URL:          https://github.com/richardatlateralblast/freemem/blob/master/freemem.pl
+# Distribution: Solaris
+# Vendor:       UNIX
+# Packager:     Richard Spindler <richard.spindler@lateralblast.com.au>
+# Description:  Free memory script which takes ZFS ARC cache into account
+
+# Changes       1.0.0
+#               Initial version
+#               1.0.1 Aug 8 2012
+#               Add check for ZFS and Zones
+#               1.0.2 Aug 22 2012
+#               Fixes for different zone output on different releases
+#               1.0.3 Dec 20 2012
+#               Code cleanups
+
 # Script to determine free memory based on output of zfs cache and vmstat
 # Additional handling has been added so the script can be run on machines
 # without ZFS, of ZFS can be discounted via the -Z option
@@ -11,9 +32,10 @@ use Getopt::Std;
 # otherwise they are set depending on what the environment check finds
 
 my $script_name=$0;
+my $script_version=`cat $script_name | grep '^# Version' |awk '{print \$3}'`;
 
 my %option=();
-getopts("vhpZz",\%option);
+getopts("vVhpZz",\%option);
 
 # If given -h print usage
 
@@ -24,8 +46,9 @@ if ($option{'h'}) {
 
 sub print_usage {
   print "\n";
-  print "Usage: $script_name -[v|h]\n";
+  print "Usage: $script_name -[v|h|V|p|z|Z]\n";
   print "\n";
+  print "-V: Print version information\n";
   print "-v: Verbose output\n";
   print "-h: Print help\n";
   print "-p: Return percentage memory used (without %)\n";
@@ -34,6 +57,18 @@ sub print_usage {
   print " z: Running in a zone (default for non global zone)\n";
   print "\n";
   return;
+}
+
+sub print_version {
+  print "$script_version";
+  return;
+}
+
+# Print script version
+
+if ($option{'V'}) {
+  print_version();
+  exit;
 }
 
 # Check environment
@@ -50,7 +85,7 @@ sub process_prstat {
 
   # Process prstat output, grabbing fourth field:
   # ZONEID    NPROC  SWAP   RSS MEMORY      TIME  CPU ZONE
-    # 0         92     355M  314M    15%   1:33:37 0.1% global
+  # 0         92     355M  314M    15%   1:33:37 0.1% global
 
   my $prstat_info=`prstat -Z 1 1 |tail -2 |head -1`;
   my @values=split(" ",$prstat_info);
@@ -70,12 +105,9 @@ sub process_prstat {
 
 sub get_actual_free_mem {
 
-  (my $arc_min,my $arc_max, my $arc_now)=get_arc_inf();
-  my $vms_mem=get_vms_mem();
-  my $sys_mem=get_sys_mem();
-  my $act_mem=$arc_now-$arc_min+$vms_mem;
-  my $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
-  my $vms_per=sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
+  my $arc_min; my $arc_max; my $arc_now;
+  my $vms_mem; my $sys_mem; my $act_mem;
+  my $act_per; my $vms_per;
   my $release_check=`cat /etc/release |head -1`;
 
   # Add some handling for zones where memory available is
@@ -85,7 +117,17 @@ sub get_actual_free_mem {
   # being greater than actual, or we are running in
   # a zone, process prstat information
 
-
+  $vms_mem=get_vms_mem();
+  $sys_mem=get_sys_mem();
+  if (!$option{'Z'}) {
+    ($arc_min,$arc_max,$arc_now)=get_arc_inf();
+    $act_mem=$arc_now-$arc_min+$vms_mem;
+  }
+  else {
+    $act_mem=$vms_mem;
+  }
+  $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+  $vms_per=sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
   chomp($release_check);
 
   # Handling of memory in zones
@@ -96,9 +138,13 @@ sub get_actual_free_mem {
     # Handle different prstat outputs on different releases
 
     if (-e "/usr/bin/prstat") {
-      if ($release_check=~/8\/11|10\/08/) {
+      if ($release_check=~/8\/11|10\/08|5\/09/) {
         $vms_mem=process_prstat();
         $vms_per=sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
+      if (($arc_min > $sys_mem)||($act_per < 0)) {
+          $act_mem=$vms_mem;
+          $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+        }
       }
       else {
         $vms_mem=process_prstat();
@@ -179,8 +225,15 @@ sub check_env {
   # If we are on Solaris 10 and ZFS is being used set -Z by default
   # If we are on Solaris 10 and running in a zone set -z by default
 
-  my $os_check=`uname -r`;
+  my $os_check=`uname -a`;
   my $zone_check;
+
+  # Check we are running on Solaris
+
+  if ($os_check!~/SunOS/) {
+    print "This script will only run on Solaris\n";
+    exit;
+  }
 
   # Check if running on Solaris 10, if not disable zone support
 
@@ -278,7 +331,7 @@ sub get_vms_mem {
   # If sar is present use it instead of vmstat
   # as it seems to be a little more accurate
 
-  if (-e "/usr/bin/sar") {
+  if (-e "/usr/bin/sar") {	
     $vms_mem=`sar -r 1 1 |tail -1 |awk '{print \$2}'`;
     $page_size=`/usr/bin/pagesize`;
     chomp($page_size);
@@ -288,7 +341,6 @@ sub get_vms_mem {
   else {
     $vms_mem=`/usr/bin/vmstat |tail -1 |awk '{print \$5}'`;
   }
-
   chomp($vms_mem);
   $vms_mem=sprintf '%.0f',$vms_mem/1024;
   return($vms_mem);
