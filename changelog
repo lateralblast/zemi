@@ -1,0 +1,11 @@
+# Changes
+# 0.0.1:
+# Initial version
+# 0.0.2: Aug 8 2012
+# Add check for ZFS and Zones
+# 0.0.3: Aug 22 2012
+# Fixes for different zone output on different releases
+# 0.0.4: Dec 20 2012
+# Code cleanups
+# 0.0.5: Tue 17 Jun 2014 13:59:05 EST
+# Updated documentation and license

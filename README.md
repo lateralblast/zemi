@@ -1,5 +1,12 @@
-freemem
-=======
+![alt tag](https://raw.githubusercontent.com/lateralblast/zemi/master/zemi.jpg)
+
+ZEMI
+====
+
+ZFS Enabled Memory Information
+
+Information
+-----------
 
 Solaris freemem with ZFS ARC cache support.
 
@@ -13,15 +20,25 @@ prstat -Z is used to calculate available memory.
 The -Z and -z options can be set manually to simulate those
 otherwise they are set depending on what the environment check finds.
 
+
+License
+-------
+
+This software is licensed as CC-BA (Creative Commons By Attrbution)
+
+http://creativecommons.org/licenses/by/4.0/legalcode
+
 Usage
 -----
 
-    freemem -[v|h|V|p|z|Z]
+```
+$ zemi.pl -[v|h|V|p|z|Z]
 
-    -V: Print version information
-    -v: Verbose output
-    -h: Print help
-    -p: Return percentage memory used (without %)
-        (useful for monitoring)
-    -Z: Ignore ZFS ARC cache (default for machines without ZFS)
-    -z: Running in a zone (default for non global zone)
+-V: Print version information
+-v: Verbose output
+-h: Print help
+-p: Return percentage memory used (without %)
+    (useful for monitoring)
+-Z: Ignore ZFS ARC cache (default for machines without ZFS)
+-z: Running in a zone (default for non global zone)
+```

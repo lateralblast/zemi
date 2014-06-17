@@ -1,11 +1,10 @@
 #!/usr/bin/perl
-use strict;
-use Getopt::Std;
 
-# Name:         freemem
-# Version:      1.0.3
+# Name:         zemi (ZFS Enabled Memory Information)
+# Version:      1.0.5
 # Release:      1
-# License:      Open Source
+# License:      CC-BA (Creative Commons By Attrbution)
+#               http://creativecommons.org/licenses/by/4.0/legalcode
 # Group:        System
 # Source:       freemem.pl
 # URL:          https://github.com/richardatlateralblast/freemem/blob/master/freemem.pl
@@ -14,28 +13,12 @@ use Getopt::Std;
 # Packager:     Richard Spindler <richard.spindler@lateralblast.com.au>
 # Description:  Free memory script which takes ZFS ARC cache into account
 
-# Changes       1.0.0
-#               Initial version
-#               1.0.1 Aug 8 2012
-#               Add check for ZFS and Zones
-#               1.0.2 Aug 22 2012
-#               Fixes for different zone output on different releases
-#               1.0.3 Dec 20 2012
-#               Code cleanups
+use strict;
+use Getopt::Std;
 
-# Script to determine free memory based on output of zfs cache and vmstat
-# Additional handling has been added so the script can be run on machines
-# without ZFS, of ZFS can be discounted via the -Z option
-# Additional handling has been added for running in zones where
-# prstat -Z is used to calculate available memory
-# The -Z and -z options can be set manually to simulate those
-# otherwise they are set depending on what the environment check finds
-
-my $script_name=$0;
-my $script_version=`cat $script_name | grep '^# Version' |awk '{print \$3}'`;
-
-my %option=();
-getopts("vVhpZz",\%option);
+my $script_name    = $0;
+my $script_version = `cat $script_name | grep '^# Version' |awk '{print \$3}'`;
+my %option         = getopts("vVhpZz",\%option);
 
 # If given -h print usage
 
@@ -87,16 +70,16 @@ sub process_prstat {
   # ZONEID    NPROC  SWAP   RSS MEMORY      TIME  CPU ZONE
   # 0         92     355M  314M    15%   1:33:37 0.1% global
 
-  my $prstat_info=`prstat -Z 1 1 |tail -2 |head -1`;
-  my @values=split(" ",$prstat_info);
-  my $vms_mem=$values[3];
+  my $prstat_info = `prstat -Z 1 1 |tail -2 |head -1`;
+  my @values      = split(" ",$prstat_info);
+  my $vms_mem     = $values[3];
 
-  if ($vms_mem=~/G/) {
-    $vms_mem=~s/[A-z]//g;
-    $vms_mem=$vms_mem*1024;
+  if ($vms_mem =~ /G/) {
+    $vms_mem =~ s/[A-z]//g;
+    $vms_mem = $vms_mem*1024;
   }
   else {
-    $vms_mem=~s/[A-z]//g;
+    $vms_mem =~ s/[A-z]//g;
   }
   return($vms_mem);
 }
@@ -105,10 +88,15 @@ sub process_prstat {
 
 sub get_actual_free_mem {
 
-  my $arc_min; my $arc_max; my $arc_now;
-  my $vms_mem; my $sys_mem; my $act_mem;
-  my $act_per; my $vms_per;
-  my $release_check=`cat /etc/release |head -1`;
+  my $arc_min;
+  my $arc_max;
+  my $arc_now;
+  my $vms_mem;
+  my $sys_mem;
+  my $act_mem;
+  my $act_per;
+  my $vms_per;
+  my $release_check = `cat /etc/release |head -1`;
 
   # Add some handling for zones where memory available is
   # coming back as total system memory
@@ -117,17 +105,17 @@ sub get_actual_free_mem {
   # being greater than actual, or we are running in
   # a zone, process prstat information
 
-  $vms_mem=get_vms_mem();
-  $sys_mem=get_sys_mem();
+  $vms_mem = get_vms_mem();
+  $sys_mem = get_sys_mem();
   if (!$option{'Z'}) {
-    ($arc_min,$arc_max,$arc_now)=get_arc_inf();
-    $act_mem=$arc_now-$arc_min+$vms_mem;
+    ($arc_min,$arc_max,$arc_now) = get_arc_inf();
+    $act_mem = $arc_now-$arc_min+$vms_mem;
   }
   else {
-    $act_mem=$vms_mem;
+    $act_mem = $vms_mem;
   }
-  $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
-  $vms_per=sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
+  $act_per = sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+  $vms_per = sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
   chomp($release_check);
 
   # Handling of memory in zones
@@ -138,17 +126,17 @@ sub get_actual_free_mem {
     # Handle different prstat outputs on different releases
 
     if (-e "/usr/bin/prstat") {
-      if ($release_check=~/8\/11|10\/08|5\/09/) {
-        $vms_mem=process_prstat();
-        $vms_per=sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
+      if ($release_check =~ /8\/11|10\/08|5\/09/) {
+        $vms_mem = process_prstat();
+        $vms_per = sprintf '%.0f',100-(($vms_mem/$sys_mem)*100);
       if (($arc_min > $sys_mem)||($act_per < 0)) {
-          $act_mem=$vms_mem;
-          $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+          $act_mem = $vms_mem;
+          $act_per = sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
         }
       }
       else {
-        $vms_mem=process_prstat();
-        $vms_per=sprintf '%.0f',($vms_mem/$sys_mem)*100;
+        $vms_mem = process_prstat();
+        $vms_per = sprintf '%.0f',($vms_mem/$sys_mem)*100;
       }
     }
 
@@ -156,15 +144,15 @@ sub get_actual_free_mem {
     # or we are not using ZFS
 
     if (($act_mem < 0)&&(!$option{'Z'})) {
-      $act_mem=$vms_mem+$arc_now;
-      $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+      $act_mem = $vms_mem+$arc_now;
+      $act_per = sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
     }
 
     # Handle where the current ARC cache has dropped below min
 
     if ((!$option{'Z'})&&($arc_now < $arc_min)) {
-      $act_mem=$vms_mem+$arc_now;
-      $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+      $act_mem = $vms_mem+$arc_now;
+      $act_per = sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
     }
   }
   else {
@@ -172,8 +160,8 @@ sub get_actual_free_mem {
     # Handle global zone with ZFS
 
     if (($vms_mem > $act_mem)&&(!$option{'Z'})) {
-      $act_mem=$vms_mem+$arc_now;
-      $act_per=sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
+      $act_mem = $vms_mem+$arc_now;
+      $act_per = sprintf '%.0f',100-(($act_mem/$sys_mem)*100);
     }
   }
 
@@ -225,54 +213,54 @@ sub check_env {
   # If we are on Solaris 10 and ZFS is being used set -Z by default
   # If we are on Solaris 10 and running in a zone set -z by default
 
-  my $os_check=`uname -a`;
+  my $os_check = `uname -a`;
   my $zone_check;
 
   # Check we are running on Solaris
 
-  if ($os_check!~/SunOS/) {
+  if ($os_check !~ /SunOS/) {
     print "This script will only run on Solaris\n";
     exit;
   }
 
   # Check if running on Solaris 10, if not disable zone support
 
-  if ($os_check!~/5\.10|5\.11/) {
+  if ($os_check !~ /5\.10|5\.11/) {
     if ($option{'v'}) {
       print "This does not appear to be Solaris 10 or 11\n";
       print "Disabling ZFS support\n";
     }
-    $option{'Z'}=1;
+    $option{'Z'} = 1;
   }
   else {
-    $zone_check=`/usr/bin/zonename`;
+    $zone_check = `/usr/bin/zonename`;
     chomp($zone_check);
-    if ($zone_check!~/^global$/) {
+    if ($zone_check !~ /^global$/) {
       if ($option{'v'}) {
         print "Running in a non global zone\n";
       }
-      $option{'z'}=1;
+      $option{'z'} = 1;
     }
     if (! -e "/usr/sbin/zfs") {
       if ($option{'v'}) {
         print "This does not appear to be Solaris 10 or 11\n";
         print "Disabling ZFS support\n";
       }
-      $option{'Z'}=1;
+      $option{'Z'} = 1;
     }
     else {
 
       # Check whether we have any ZFS filesystems mounted
       # If no ZFS filesystems are mounted ZFS cache is not used
 
-      $os_check=`cat /etc/mnttab |grep zfs`;
+      $os_check = `cat /etc/mnttab |grep zfs`;
       chomp($os_check);
-      if ($os_check!~/zfs/) {
+      if ($os_check !~ /zfs/) {
         if ($option{'v'}) {
           print "No ZFS file systems\n";
           print "Disabling ZFS support\n";
         }
-        $option{'Z'}=1;
+        $option{'Z'} = 1;
       }
     }
   }
@@ -288,17 +276,17 @@ sub check_env {
 
 sub get_arc_inf {
 
-  my @arc_inf=`/usr/bin/kstat -m zfs |egrep 'c_|size' |grep -v '_size' |awk '{print \$2}'`;
-  my $arc_min=$arc_inf[1];
-  my $arc_max=$arc_inf[0];
-  my $arc_now=$arc_inf[2];
+  my @arc_inf = `/usr/bin/kstat -m zfs |egrep 'c_|size' |grep -v '_size' |awk '{print \$2}'`;
+  my $arc_min = $arc_inf[1];
+  my $arc_max = $arc_inf[0];
+  my $arc_now = $arc_inf[2];
 
   chomp($arc_min);
   chomp($arc_max);
   chomp($arc_now);
-  $arc_min=sprintf '%.0f',$arc_min/(1024*1024);
-  $arc_max=sprintf '%.0f',$arc_max/(1024*1024);
-  $arc_now=sprintf '%.0f',$arc_now/(1024*1024);
+  $arc_min = sprintf '%.0f',$arc_min/(1024*1024);
+  $arc_max = sprintf '%.0f',$arc_max/(1024*1024);
+  $arc_now = sprintf '%.0f',$arc_now/(1024*1024);
   return($arc_min,$arc_max,$arc_now);
 }
 
@@ -308,17 +296,17 @@ sub get_sys_mem {
 
   # prtconf can be run from a zone, but need to handle stderr
 
-  my $sys_mem=`/usr/sbin/prtconf 2>&1 |grep Memory |cut -f2 -d":"`;
-  my @values=split(' ',$sys_mem);
-  my $multiplier=1;
+  my $sys_mem    = `/usr/sbin/prtconf 2>&1 |grep Memory |cut -f2 -d":"`;
+  my @values     = split(' ',$sys_mem);
+  my $multiplier = 1;
 
   # System memory is generally returned in MB
   # so multiply by 1024 to get memory in KB
 
-  if ($values[1]=~/Gigabyte/) {
-    $multiplier=1024;
+  if ($values[1] =~ /Gigabyte/) {
+    $multiplier = 1024;
   }
-  $sys_mem=$values[0]*$multiplier;
+  $sys_mem = $values[0]*$multiplier;
   return($sys_mem);
 }
 
@@ -326,22 +314,23 @@ sub get_sys_mem {
 
 sub get_vms_mem {
 
-  my $vms_mem; my $page_size;
+  my $vms_mem;
+  my $page_size;
 
   # If sar is present use it instead of vmstat
   # as it seems to be a little more accurate
 
-  if (-e "/usr/bin/sar") {	
-    $vms_mem=`sar -r 1 1 |tail -1 |awk '{print \$2}'`;
-    $page_size=`/usr/bin/pagesize`;
+  if (-e "/usr/bin/sar") {
+    $vms_mem   = `sar -r 1 1 |tail -1 |awk '{print \$2}'`;
+    $page_size = `/usr/bin/pagesize`;
     chomp($page_size);
-    $page_size=$page_size/1024;
-    $vms_mem=$vms_mem*$page_size;
+    $page_size = $page_size/1024;
+    $vms_mem   = $vms_mem*$page_size;
   }
   else {
-    $vms_mem=`/usr/bin/vmstat |tail -1 |awk '{print \$5}'`;
+    $vms_mem = `/usr/bin/vmstat |tail -1 |awk '{print \$5}'`;
   }
   chomp($vms_mem);
-  $vms_mem=sprintf '%.0f',$vms_mem/1024;
+  $vms_mem = sprintf '%.0f',$vms_mem/1024;
   return($vms_mem);
 }
