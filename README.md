@@ -1,5 +1,7 @@
 ![alt tag](https://raw.githubusercontent.com/lateralblast/zemi/master/zemi.jpg)
 
+> A zemi or cemi is a deity or ancestral spirit, and a sculptural object that houses the spirit, among the Taíno.
+
 ZEMI
 ====
 
