@@ -23,12 +23,17 @@ The -Z and -z options can be set manually to simulate those
 otherwise they are set depending on what the environment check finds.
 
 
+Version
+-------
+
+Current version: 1.2.1
+
 License
 -------
 
-This software is licensed as CC-BA (Creative Commons By Attrbution)
+This software is licensed as CC BY-NC-SA 4.0 (Creative Commons Attribution-NonCommercial-ShareAlike)
 
-http://creativecommons.org/licenses/by/4.0/legalcode
+http://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
 Usage
 -----
@@ -44,3 +49,10 @@ $ zemi.pl -[v|h|V|p|z|Z]
 -Z: Ignore ZFS ARC cache (default for machines without ZFS)
 -z: Running in a zone (default for non global zone)
 ```
+
+Help Support Development
+------------------------
+
+If you find this software useful and would like to support its development, please consider buying me a coffee:
+
+https://ko-fi.com/richardatlateralblast
